@@ -2,6 +2,7 @@ package hello.login.web.login;
 
 import hello.login.domain.login.LoginService;
 import hello.login.domain.member.Member;
+import hello.login.web.SessionConst;
 import hello.login.web.session.SessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 @Slf4j
 @Controller
@@ -50,7 +52,7 @@ public class LoginController {
         return "redirect:/";
     }
 
-    @PostMapping("/login")
+//    @PostMapping("/login")
     public String loginSession(@ModelAttribute("loginForm") LoginForm form, BindingResult bindingResult, HttpServletResponse response) {
 
         if(bindingResult.hasErrors()) {
@@ -71,6 +73,32 @@ public class LoginController {
         return "redirect:/";
     }
 
+    /**
+     * @param request HttpServlet이 제공하는 기능을 사용하기 위해
+     */
+    @PostMapping("/login")
+    public String loginServletSession(@ModelAttribute("loginForm") LoginForm form, BindingResult bindingResult, HttpServletRequest request) {
+
+        if(bindingResult.hasErrors()) {
+            return "login/loginForm";
+        }
+
+        Member loginMember = loginService.login(form.getLoginId(), form.getPassword());
+
+        if(loginMember == null) {
+            bindingResult.reject("loginFail", "아이디 또는 비번이 맞지 않습니다.");
+            return "login/loginForm";
+        }
+
+        //Login Success
+        //세션이 있으면 있는 세션 반환, 없으면 신규 세션을 생성
+        HttpSession session = request.getSession();
+        //세션에 로그인 회원 정보 보관
+        session.setAttribute(SessionConst.LOGIN_MEMBER, loginMember);//세션에 보관하고 싶은 객체를 담아두면 된다.
+
+        return "redirect:/";
+    }
+
 //    @PostMapping("/logout")
     public String logoutCookie(HttpServletResponse response) {
         expireCookie(response, "memberId");
@@ -78,11 +106,20 @@ public class LoginController {
         return "home";
     }
 
-    @PostMapping("/logout")
+//    @PostMapping("/logout")
     public String logoutSession(HttpServletRequest request) {
         sessionManager.expire(request);
 
-        return "home";
+        return "redirect:/";
+    }
+
+    @PostMapping("/logout")
+    public String logoutServletSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if(session !=null) {
+            session.invalidate();
+        }
+        return "redirect:/";
     }
 
     private static void expireCookie(HttpServletResponse response, String cookieName) {
